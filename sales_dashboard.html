@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sales Forecasting Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+:root{
+  --bg:#0b0f1a;--surface:#111827;--card:#1a2235;--border:#1f2d45;
+  --blue:#3b82f6;--green:#22c55e;--red:#ef4444;--purple:#a855f7;
+  --orange:#f97316;--yellow:#eab308;--teal:#14b8a6;--pink:#ec4899;
+  --text:#e2e8f0;--muted:#64748b;--shadow:0 4px 24px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+.header{background:linear-gradient(135deg,#0f172a,#1e293b);border-bottom:1px solid var(--border);padding:26px 40px;display:flex;align-items:center;justify-content:space-between;}
+.hlogo{display:flex;align-items:center;gap:14px;}
+.hicon{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;}
+.hlogo h1{font-size:20px;font-weight:800;color:var(--text);}
+.hlogo p{font-size:12px;color:var(--muted);margin-top:2px;}
+.hstats{display:flex;gap:28px;}
+.hs{text-align:right;}
+.hs-val{font-size:20px;font-weight:800;color:var(--blue);}
+.hs-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 40px;display:flex;gap:4px;position:sticky;top:0;z-index:50;overflow-x:auto;}
+.tab{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+
+.main{padding:28px 40px;max-width:1400px;margin:0 auto;}
+.section{display:none;}.section.active{display:block;}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px;margin-bottom:24px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;transition:transform .2s;box-shadow:var(--shadow);}
+.kpi:hover{transform:translateY(-2px);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.blue::before{background:var(--blue);}.kpi.green::before{background:var(--green);}
+.kpi.red::before{background:var(--red);}.kpi.purple::before{background:var(--purple);}
+.kpi.orange::before{background:var(--orange);}.kpi.teal::before{background:var(--teal);}
+.kpi-icon{font-size:20px;margin-bottom:8px;}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:6px;}
+.kpi-val{font-size:22px;font-weight:800;}
+.kpi.blue .kpi-val{color:var(--blue);}.kpi.green .kpi-val{color:var(--green);}
+.kpi.red .kpi-val{color:var(--red);}.kpi.purple .kpi-val{color:var(--purple);}
+.kpi.orange .kpi-val{color:var(--orange);}.kpi.teal .kpi-val{color:var(--teal);}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px;}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;box-shadow:var(--shadow);}
+.cc h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px;}
+.cc canvas{max-height:260px;}
+.cc.tall canvas{max-height:330px;}
+
+/* region cards */
+.region-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.region-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;text-align:center;box-shadow:var(--shadow);}
+.region-flag{font-size:28px;margin-bottom:8px;}
+.region-name{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.region-val{font-size:20px;font-weight:800;color:var(--blue);margin:4px 0;}
+.region-share{font-size:11px;color:var(--muted);}
+.prog-bg{background:var(--border);border-radius:6px;height:6px;margin-top:8px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:6px;}
+
+/* forecast cards */
+.forecast-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+.fc-card{background:linear-gradient(135deg,rgba(59,130,246,0.1),rgba(168,85,247,0.1));border:1px solid rgba(59,130,246,0.25);border-radius:14px;padding:20px;text-align:center;}
+.fc-month{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+.fc-val{font-size:24px;font-weight:800;color:var(--blue);margin:8px 0;}
+.fc-growth{font-size:12px;color:var(--green);}
+
+/* insights */
+.insight-box{background:linear-gradient(135deg,rgba(234,179,8,0.07),rgba(249,115,22,0.07));border:1px solid rgba(234,179,8,0.2);border-radius:14px;padding:22px;margin-top:18px;}
+.insight-box h3{color:var(--yellow);font-size:14px;font-weight:700;margin-bottom:14px;}
+.insight-list{display:flex;flex-direction:column;gap:10px;}
+.insight-item{font-size:13px;color:var(--text);display:flex;gap:10px;align-items:flex-start;}
+
+/* table */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{background:var(--surface);color:var(--muted);text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);}
+td{padding:10px 14px;border-bottom:1px solid rgba(31,45,69,0.5);color:var(--text);}
+tr:hover td{background:rgba(59,130,246,0.05);}
+.up{color:var(--green);font-weight:700;}.down{color:var(--red);font-weight:700;}
+
+/* scenario */
+.scenario{background:linear-gradient(135deg,rgba(59,130,246,0.07),rgba(168,85,247,0.07));border:1px solid rgba(59,130,246,0.2);border-radius:14px;padding:24px;margin-top:18px;}
+.scenario h3{font-size:15px;font-weight:700;color:var(--blue);margin-bottom:6px;}
+.scenario p{font-size:12px;color:var(--muted);margin-bottom:18px;}
+.sc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:18px;}
+.sc-input{display:flex;flex-direction:column;gap:6px;}
+.sc-input label{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600;}
+.sc-input input[type=range]{accent-color:var(--blue);}
+.sc-val{font-size:13px;font-weight:700;color:var(--blue);}
+.sc-btn{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:10px;padding:12px 28px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}
+.sc-result{margin-top:18px;background:var(--card);border-radius:12px;border:1px solid var(--border);padding:18px;}
+.sc-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.sc-row:last-child{border:none;font-weight:700;font-size:15px;}
+
+@media(max-width:768px){
+  .header{flex-direction:column;gap:14px;padding:16px 20px;}
+  .main{padding:16px 20px;}
+  .g2,.g3,.g21,.region-grid,.forecast-grid{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .nav{padding:0 16px;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="hlogo">
+    <div class="hicon">📈</div>
+    <div>
+      <h1>Sales Forecasting Dashboard</h1>
+      <p>Business Performance Analytics · 2021–2023 + Forecast 2024</p>
+    </div>
+  </div>
+  <div class="hstats">
+    <div class="hs"><div class="hs-val">₹8.99 Cr</div><div class="hs-lbl">Total Revenue</div></div>
+    <div class="hs"><div class="hs-val">₹2.37 Cr</div><div class="hs-lbl">Total Profit</div></div>
+    <div class="hs"><div class="hs-val">+8%</div><div class="hs-lbl">YoY Growth</div></div>
+  </div>
+</div>
+
+<div class="nav">
+  <div class="tab active" onclick="showTab('overview',this)">📊 Overview</div>
+  <div class="tab" onclick="showTab('regions',this)">🗺️ Regions</div>
+  <div class="tab" onclick="showTab('categories',this)">📦 Categories</div>
+  <div class="tab" onclick="showTab('forecast',this)">🔮 Forecast</div>
+  <div class="tab" onclick="showTab('details',this)">📋 Details</div>
+</div>
+
+<div class="main">
+
+<!-- OVERVIEW -->
+<div class="section active" id="overview">
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-icon">💰</div><div class="kpi-label">Total Revenue</div><div class="kpi-val">₹8.99 Cr</div><div class="kpi-sub">2021–2023</div></div>
+    <div class="kpi green"><div class="kpi-icon">📈</div><div class="kpi-label">Total Profit</div><div class="kpi-val">₹2.37 Cr</div><div class="kpi-sub">26.4% margin</div></div>
+    <div class="kpi purple"><div class="kpi-icon">📦</div><div class="kpi-label">Units Sold</div><div class="kpi-val">59,838</div><div class="kpi-sub">across all categories</div></div>
+    <div class="kpi orange"><div class="kpi-icon">🌍</div><div class="kpi-label">Top Region</div><div class="kpi-val">North</div><div class="kpi-sub">29.7% share</div></div>
+    <div class="kpi teal"><div class="kpi-icon">🏆</div><div class="kpi-label">Top Category</div><div class="kpi-val">Electronics</div><div class="kpi-sub">₹2.39 Cr revenue</div></div>
+    <div class="kpi green"><div class="kpi-icon">🚀</div><div class="kpi-label">YoY Growth</div><div class="kpi-val">+8%</div><div class="kpi-sub">2022→2023</div></div>
+  </div>
+  <div class="g21">
+    <div class="cc tall">
+      <h3>Monthly Sales Trend — 3 Years</h3>
+      <canvas id="c_monthlyTrend"></canvas>
+    </div>
+    <div class="cc">
+      <h3>Region-wise Share</h3>
+      <canvas id="c_regionPie"></canvas>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="cc">
+      <h3>Quarterly Sales by Year</h3>
+      <canvas id="c_quarterly"></canvas>
+    </div>
+    <div class="cc">
+      <h3>Year-on-Year Growth</h3>
+      <canvas id="c_yoy"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- REGIONS -->
+<div class="section" id="regions">
+  <div class="region-grid">
+    <div class="region-card">
+      <div class="region-flag">🏔️</div>
+      <div class="region-name">North</div>
+      <div class="region-val">₹26.70L</div>
+      <div class="region-share">29.7% of total</div>
+      <div class="prog-bg"><div class="prog-fill" style="width:100%;background:var(--blue)"></div></div>
+    </div>
+    <div class="region-card">
+      <div class="region-flag">🌊</div>
+      <div class="region-name">West</div>
+      <div class="region-val">₹24.31L</div>
+      <div class="region-share">27.0% of total</div>
+      <div class="prog-bg"><div class="prog-fill" style="width:91%;background:var(--purple)"></div></div>
+    </div>
+    <div class="region-card">
+      <div class="region-flag">🌴</div>
+      <div class="region-name">South</div>
+      <div class="region-val">₹21.19L</div>
+      <div class="region-share">23.6% of total</div>
+      <div class="prog-bg"><div class="prog-fill" style="width:79%;background:var(--green)"></div></div>
+    </div>
+    <div class="region-card">
+      <div class="region-flag">🌅</div>
+      <div class="region-name">East</div>
+      <div class="region-val">₹17.71L</div>
+      <div class="region-share">19.7% of total</div>
+      <div class="prog-bg"><div class="prog-fill" style="width:66%;background:var(--orange)"></div></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="cc tall">
+      <h3>Region-wise Monthly Sales Trend</h3>
+      <canvas id="c_regionTrend"></canvas>
+    </div>
+    <div class="cc tall">
+      <h3>Region × Year Performance</h3>
+      <canvas id="c_regionYear"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORIES -->
+<div class="section" id="categories">
+  <div class="kpi-grid">
+    <div class="kpi blue"><div class="kpi-label">Electronics</div><div class="kpi-val">₹23.91L</div><div class="kpi-sub">26.6% share · best Nov-Dec</div></div>
+    <div class="kpi green"><div class="kpi-label">Groceries</div><div class="kpi-val">₹19.60L</div><div class="kpi-sub">21.8% share · stable</div></div>
+    <div class="kpi orange"><div class="kpi-label">Clothing</div><div class="kpi-val">₹18.31L</div><div class="kpi-sub">20.4% share · peaks Mar+Oct</div></div>
+    <div class="kpi purple"><div class="kpi-label">Furniture</div><div class="kpi-val">₹14.15L</div><div class="kpi-sub">15.7% share · steady</div></div>
+    <div class="kpi teal"><div class="kpi-label">Sports</div><div class="kpi-val">₹13.94L</div><div class="kpi-sub">15.5% share · peaks Jun-Aug</div></div>
+  </div>
+  <div class="g2">
+    <div class="cc tall">
+      <h3>Category Sales by Year</h3>
+      <canvas id="c_catYear"></canvas>
+    </div>
+    <div class="cc">
+      <h3>Category Profit Margin (%)</h3>
+      <canvas id="c_catMargin"></canvas>
+    </div>
+  </div>
+  <div class="cc">
+    <h3>Seasonal Sales Pattern by Category (Monthly Average)</h3>
+    <canvas id="c_seasonal"></canvas>
+  </div>
+</div>
+
+<!-- FORECAST -->
+<div class="section" id="forecast">
+  <div class="forecast-grid">
+    <div class="fc-card"><div class="fc-month">Jan 2024</div><div class="fc-val">₹28.15L</div><div class="fc-growth">↑ +7.4% vs Jan 2023</div></div>
+    <div class="fc-card"><div class="fc-month">Feb 2024</div><div class="fc-val">₹28.33L</div><div class="fc-growth">↑ +7.6% vs Feb 2023</div></div>
+    <div class="fc-card"><div class="fc-month">Mar 2024</div><div class="fc-val">₹28.50L</div><div class="fc-growth">↑ +8.1% vs Mar 2023</div></div>
+    <div class="fc-card"><div class="fc-month">Apr 2024</div><div class="fc-val">₹28.68L</div><div class="fc-growth">↑ +8.0% vs Apr 2023</div></div>
+    <div class="fc-card"><div class="fc-month">May 2024</div><div class="fc-val">₹28.86L</div><div class="fc-growth">↑ +7.9% vs May 2023</div></div>
+    <div class="fc-card"><div class="fc-month">Jun 2024</div><div class="fc-val">₹29.04L</div><div class="fc-growth">↑ +8.2% vs Jun 2023</div></div>
+  </div>
+
+  <div class="cc tall" style="margin-bottom:18px;">
+    <h3>Sales Forecast — 6 Months (Polynomial Regression · R²=0.712)</h3>
+    <canvas id="c_forecast"></canvas>
+  </div>
+
+  <div class="insight-box">
+    <h3>💡 Business Insights from Forecast</h3>
+    <div class="insight-list">
+      <div class="insight-item"><span>📈</span><span><strong>Consistent Growth:</strong> Sales are growing at ~8% YoY. If this continues, 2024 annual revenue is projected at ~₹3.47 Cr.</span></div>
+      <div class="insight-item"><span>🛒</span><span><strong>Electronics Seasonality:</strong> Expect a big spike in Nov-Dec 2024 (Diwali + year-end). Stock up Electronics inventory by October.</span></div>
+      <div class="insight-item"><span>🌍</span><span><strong>East Region Opportunity:</strong> East is growing fastest (% basis). Investing in distribution there could add ₹3-5L extra revenue in 2024.</span></div>
+      <div class="insight-item"><span>⚽</span><span><strong>Sports & Summer:</strong> June-August is peak for Sports category. Promotional campaigns in May can capture early buyers.</span></div>
+      <div class="insight-item"><span>💹</span><span><strong>Margin Improvement:</strong> Current avg margin is 26.4%. Reducing discount% by 2 points could improve profit by ~₹12L annually.</span></div>
+    </div>
+  </div>
+
+  <!-- Scenario -->
+  <div class="scenario">
+    <h3>🎯 Growth Scenario Simulator</h3>
+    <p>Adjust growth rate and discount to see projected annual revenue for 2024</p>
+    <div class="sc-grid">
+      <div class="sc-input">
+        <label>Expected Growth Rate (%)</label>
+        <input type="range" id="sc_growth" min="2" max="20" value="8" oninput="document.getElementById('sc_growth_v').textContent=this.value+'%';calcScenario()">
+        <span class="sc-val" id="sc_growth_v">8%</span>
+      </div>
+      <div class="sc-input">
+        <label>Avg Discount Reduction (%)</label>
+        <input type="range" id="sc_disc" min="0" max="10" value="0" oninput="document.getElementById('sc_disc_v').textContent=this.value+'%';calcScenario()">
+        <span class="sc-val" id="sc_disc_v">0%</span>
+      </div>
+      <div class="sc-input">
+        <label>New Region Expansion</label>
+        <input type="range" id="sc_region" min="0" max="3" value="0" oninput="document.getElementById('sc_region_v').textContent=this.value+' regions';calcScenario()">
+        <span class="sc-val" id="sc_region_v">0 regions</span>
+      </div>
+    </div>
+    <div class="sc-result">
+      <div class="sc-row"><span>2023 Base Revenue</span><span>₹3,21,49,500</span></div>
+      <div class="sc-row"><span>Growth Impact</span><span class="up" id="sc_growth_impact">+₹25,71,960</span></div>
+      <div class="sc-row"><span>Discount Reduction Gain</span><span class="up" id="sc_disc_impact">+₹0</span></div>
+      <div class="sc-row"><span>New Region Revenue</span><span class="up" id="sc_region_impact">+₹0</span></div>
+      <div class="sc-row"><span>🎯 Projected 2024 Revenue</span><span style="color:var(--blue)" id="sc_total">₹3,47,21,460</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAILS -->
+<div class="section" id="details">
+  <div style="display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;align-items:center;">
+    <select id="f_region" onchange="filterTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+      <option value="">All Regions</option><option>North</option><option>South</option><option>East</option><option>West</option>
+    </select>
+    <select id="f_cat" onchange="filterTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+      <option value="">All Categories</option><option>Electronics</option><option>Clothing</option><option>Furniture</option><option>Groceries</option><option>Sports</option>
+    </select>
+    <select id="f_year" onchange="filterTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-family:inherit;font-size:13px;outline:none;">
+      <option value="">All Years</option><option>2021</option><option>2022</option><option>2023</option>
+    </select>
+    <span id="row_count" style="font-size:12px;color:var(--muted);margin-left:auto;"></span>
+  </div>
+  <div class="cc" style="padding:0;overflow:hidden;">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Region</th><th>Category</th><th>Sales (₹)</th><th>Profit (₹)</th><th>Margin</th><th>Units</th></tr></thead>
+        <tbody id="detail_table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const CD = {responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#64748b',font:{size:11}}}}};
+const months12 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Monthly data per year
+const monthly2021 = [758e4,693e4,771e4,745e4,756e4,805e4,761e4,743e4,755e4,822e4,871e4,875e4].map(v=>v/100);
+const monthly2022 = [810e4,748e4,836e4,805e4,813e4,869e4,822e4,803e4,816e4,887e4,940e4,945e4].map(v=>v/100);
+const monthly2023 = [870e4,800e4,900e4,864e4,873e4,934e4,881e4,861e4,879e4,2849e3,2911e3,2921e3];
+
+// 1. Monthly Trend
+new Chart(document.getElementById('c_monthlyTrend'),{
+  type:'line',
+  data:{labels:months12,datasets:[
+    {label:'2021',data:monthly2021,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.06)',tension:.4,pointRadius:4,fill:true},
+    {label:'2022',data:monthly2022,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.06)',tension:.4,pointRadius:4,fill:true},
+    {label:'2023',data:monthly2023,borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.06)',tension:.4,pointRadius:4,fill:true}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>`₹${(v/1e5).toFixed(1)}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 2. Region Pie
+new Chart(document.getElementById('c_regionPie'),{
+  type:'doughnut',
+  data:{labels:['North','West','South','East'],datasets:[{data:[2670,2431,2119,1771],backgroundColor:['#3b82f6','#a855f7','#22c55e','#f97316'],borderWidth:2,borderColor:'#1a2235'}]},
+  options:{...CD,cutout:'60%'}
+});
+
+// 3. Quarterly
+new Chart(document.getElementById('c_quarterly'),{
+  type:'bar',
+  data:{labels:['Q1','Q2','Q3','Q4'],datasets:[
+    {label:'2021',data:[2222,2306,2259,2568],backgroundColor:'rgba(59,130,246,0.8)',borderRadius:5},
+    {label:'2022',data:[2394,2487,2490,2628],backgroundColor:'rgba(34,197,94,0.8)',borderRadius:5},
+    {label:'2023',data:[2570,2671,2621,8681],backgroundColor:'rgba(249,115,22,0.8)',borderRadius:5}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 4. YoY bars
+new Chart(document.getElementById('c_yoy'),{
+  type:'bar',
+  data:{labels:['2021','2022','2023'],datasets:[{label:'Annual Revenue',data:[2776,2999,3215],backgroundColor:['#3b82f6','#22c55e','#f97316'],borderRadius:8}]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 5. Region Trend
+const regionData = {
+  North: [230,210,235,225,228,245,232,228,231,248,263,265],
+  South: [183,167,186,178,181,193,184,181,183,198,210,211],
+  East:  [152,139,155,149,151,162,154,151,153,165,175,176],
+  West:  [208,190,212,205,207,222,210,206,209,223,240,241],
+};
+new Chart(document.getElementById('c_regionTrend'),{
+  type:'line',
+  data:{labels:months12,datasets:[
+    {label:'North',data:regionData.North,borderColor:'#3b82f6',tension:.4,pointRadius:3},
+    {label:'West', data:regionData.West, borderColor:'#a855f7',tension:.4,pointRadius:3},
+    {label:'South',data:regionData.South,borderColor:'#22c55e',tension:.4,pointRadius:3},
+    {label:'East', data:regionData.East, borderColor:'#f97316',tension:.4,pointRadius:3}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 6. Region × Year
+new Chart(document.getElementById('c_regionYear'),{
+  type:'bar',
+  data:{labels:['North','West','South','East'],datasets:[
+    {label:'2021',data:[790,717,624,521],backgroundColor:'rgba(59,130,246,0.8)',borderRadius:5},
+    {label:'2022',data:[854,775,675,564],backgroundColor:'rgba(34,197,94,0.8)',borderRadius:5},
+    {label:'2023',data:[1026,941,813,435],backgroundColor:'rgba(249,115,22,0.8)',borderRadius:5}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 7. Category × Year
+new Chart(document.getElementById('c_catYear'),{
+  type:'bar',
+  data:{labels:['Electronics','Groceries','Clothing','Furniture','Sports'],datasets:[
+    {label:'2021',data:[670,548,513,396,390],backgroundColor:'rgba(59,130,246,0.8)',borderRadius:5},
+    {label:'2022',data:[790,606,569,444,431],backgroundColor:'rgba(34,197,94,0.8)',borderRadius:5},
+    {label:'2023',data:[931,806,751,575,573],backgroundColor:'rgba(249,115,22,0.8)',borderRadius:5}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b',font:{size:10}}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 8. Category margin
+new Chart(document.getElementById('c_catMargin'),{
+  type:'bar',
+  data:{labels:['Electronics','Clothing','Groceries','Furniture','Sports'],datasets:[{label:'Avg Margin %',data:[27.2,26.8,26.5,26.1,25.8],backgroundColor:['#3b82f6','#f97316','#22c55e','#a855f7','#14b8a6'],borderRadius:8}]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b',font:{size:10}}},y:{min:24,max:29,ticks:{color:'#64748b',callback:v=>v+'%'},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// 9. Seasonal
+const seasonal = {
+  Electronics:[85,78,90,88,87,95,91,89,92,110,165,168],
+  Clothing:   [90,85,118,88,86,92,89,87,91,115,95,88],
+  Sports:     [72,70,75,78,82,108,115,112,85,76,73,70],
+  Groceries:  [95,90,98,96,97,100,98,97,99,112,118,120],
+  Furniture:  [80,78,85,82,83,86,84,83,85,88,90,91],
+};
+new Chart(document.getElementById('c_seasonal'),{
+  type:'line',
+  data:{labels:months12,datasets:[
+    {label:'Electronics',data:seasonal.Electronics,borderColor:'#3b82f6',tension:.4,pointRadius:3},
+    {label:'Clothing',   data:seasonal.Clothing,   borderColor:'#f97316',tension:.4,pointRadius:3},
+    {label:'Sports',     data:seasonal.Sports,     borderColor:'#22c55e',tension:.4,pointRadius:3},
+    {label:'Groceries',  data:seasonal.Groceries,  borderColor:'#a855f7',tension:.4,pointRadius:3},
+    {label:'Furniture',  data:seasonal.Furniture,  borderColor:'#14b8a6',tension:.4,pointRadius:3}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b',callback:v=>v+'%'},grid:{color:'rgba(31,45,69,0.8)'}},plugins:{...CD.plugins,title:{display:true,text:'Indexed to 100 = baseline',color:'#64748b',font:{size:10}}}}}
+});
+
+// 10. Forecast chart
+const allMonthLabels = ['Jan21','Apr21','Jul21','Oct21','Jan22','Apr22','Jul22','Oct22','Jan23','Apr23','Jul23','Oct23','Jan24','Feb24','Mar24','Apr24','May24','Jun24'];
+const actualVals = [758,745,761,822,810,805,822,887,870,864,881,2849/100,null,null,null,null,null,null];
+const forecastVals = [null,null,null,null,null,null,null,null,null,null,null,2921/100,2815/100,2833/100,2850/100,2868/100,2886/100,2904/100];
+const trendVals = [700,720,738,758,778,798,815,835,855,875,895,915,935,940,945,950,955,960];
+new Chart(document.getElementById('c_forecast'),{
+  type:'line',
+  data:{labels:allMonthLabels,datasets:[
+    {label:'Actual Sales',data:[758,745,761,822,810,805,822,887,870,864,881,892,null,null,null,null,null,null],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',tension:.4,pointRadius:4,fill:true},
+    {label:'6-Month Forecast',data:[null,null,null,null,null,null,null,null,null,null,null,892,2815,2833,2850,2868,2886,2904],borderColor:'#a855f7',borderDash:[6,4],tension:.3,pointRadius:5,pointStyle:'star'},
+    {label:'Trend Line',data:trendVals,borderColor:'#ef4444',borderDash:[3,3],tension:0,pointRadius:0}
+  ]},
+  options:{...CD,scales:{x:{ticks:{color:'#64748b',font:{size:9}}},y:{ticks:{color:'#64748b',callback:v=>`₹${v}L`},grid:{color:'rgba(31,45,69,0.8)'}}}}
+});
+
+// ── SCENARIO ────────────────────────────────────────────────
+function fmt(n){return '₹'+Math.round(n).toLocaleString('en-IN');}
+function calcScenario(){
+  const base = 32149500;
+  const g    = +document.getElementById('sc_growth').value/100;
+  const d    = +document.getElementById('sc_disc').value/100;
+  const r    = +document.getElementById('sc_region').value;
+  const growthGain  = base * g;
+  const discGain    = base * d * 0.264;
+  const regionGain  = r * 400000;
+  const total = base + growthGain + discGain + regionGain;
+  document.getElementById('sc_growth_impact').textContent = '+'+fmt(growthGain);
+  document.getElementById('sc_disc_impact').textContent   = '+'+fmt(discGain);
+  document.getElementById('sc_region_impact').textContent = '+'+fmt(regionGain);
+  document.getElementById('sc_total').textContent         = fmt(total);
+}
+calcScenario();
+
+// ── TABLE ───────────────────────────────────────────────────
+const tableData = [
+  ['Jan 2021','North','Electronics',167420,42800,25.6,89],['Jan 2021','North','Groceries',128900,33200,25.8,112],
+  ['Jan 2021','South','Electronics',132100,33800,25.6,71],['Jan 2021','West','Electronics',155200,39800,25.6,83],
+  ['Feb 2021','North','Electronics',154200,40100,26.0,82],['Feb 2021','East','Clothing',78400,20900,26.7,68],
+  ['Mar 2021','North','Clothing',142000,38200,26.9,110],['Mar 2021','West','Groceries',136700,35800,26.2,118],
+  ['Jun 2021','East','Sports',98200,25700,26.2,89],['Jun 2021','South','Sports',119800,31300,26.1,108],
+  ['Nov 2021','North','Electronics',234000,63200,27.0,124],['Nov 2021','West','Electronics',208000,55100,26.5,111],
+  ['Dec 2021','North','Electronics',241000,65800,27.3,128],['Dec 2021','South','Electronics',189000,51200,27.1,101],
+  ['Nov 2022','North','Electronics',252000,68900,27.3,134],['Nov 2022','West','Shopping',198000,52300,26.4,98],
+  ['Dec 2022','North','Electronics',261000,71200,27.3,139],['Oct 2023','North','Electronics',284900,78100,27.4,151],
+  ['Nov 2023','North','Electronics',291100,79800,27.4,155],['Dec 2023','North','Electronics',292100,80000,27.4,156],
+];
+let allRows = [...tableData];
+function renderTable(rows){
+  const tb = document.getElementById('detail_table'); tb.innerHTML='';
+  rows.forEach(r=>{
+    tb.innerHTML+=`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td>
+      <td>₹${r[3].toLocaleString('en-IN')}</td><td>₹${r[4].toLocaleString('en-IN')}</td>
+      <td class="up">${r[5]}%</td><td>${r[6]}</td></tr>`;
+  });
+  document.getElementById('row_count').textContent=`Showing ${rows.length} records`;
+}
+function filterTable(){
+  const reg = document.getElementById('f_region').value;
+  const cat = document.getElementById('f_cat').value;
+  const yr  = document.getElementById('f_year').value;
+  renderTable(allRows.filter(r=>(!reg||r[1]===reg)&&(!cat||r[2]===cat)&&(!yr||r[0].includes(yr))));
+}
+renderTable(allRows);
+
+// ── TAB NAV ─────────────────────────────────────────────────
+function showTab(id,el){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
